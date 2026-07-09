@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sales Ledger — Product Performance Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --paper:#F6F3EA;
+    --card:#FCFAF4;
+    --ink:#22293A;
+    --ink-soft:#5B6472;
+    --hair:#DEDACB;
+    --hair-strong:#C9C3AE;
+    --pos:#2F6B4F;
+    --pos-bg:#E4EEE6;
+    --neg:#AE4327;
+    --neg-bg:#F5E5DE;
+    --accent:#B8842E;
+    --accent-bg:#F1E6D0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    padding:32px 40px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:18px;
+    margin-bottom:24px;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+  .brand-eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:32px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .asof{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    text-align:right;
+  }
+
+  .filters{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    align-items:center;
+    background:var(--card);
+    border:1px solid var(--hair);
+    padding:14px 18px;
+    border-radius:3px;
+    margin-bottom:28px;
+  }
+  .filter-group{display:flex;flex-direction:column;gap:4px;}
+  .filter-group label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  select, .reset-btn{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:7px 10px;
+    border:1px solid var(--hair-strong);
+    border-radius:2px;
+    background:#fff;
+    color:var(--ink);
+    min-width:140px;
+  }
+  .reset-btn{
+    cursor:pointer;
+    background:var(--ink);
+    color:var(--paper);
+    border:1px solid var(--ink);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    min-width:auto;
+    align-self:flex-end;
+    padding:8px 14px;
+  }
+  .reset-btn:hover{opacity:0.85;}
+
+  .kpi-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:32px;
+  }
+  .kpi{
+    background:var(--card);
+    border:1px solid var(--hair);
+    border-radius:3px;
+    padding:16px 18px;
+  }
+  .kpi-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin:0 0 8px;
+  }
+  .kpi-value{
+    font-family:'Fraunces',serif;
+    font-size:28px;
+    font-weight:500;
+    margin:0;
+  }
+  .kpi-delta{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    margin-top:6px;
+  }
+  .delta-pos{color:var(--pos);}
+  .delta-neg{color:var(--neg);}
+
+  .section-title{
+    font-family:'Fraunces',serif;
+    font-size:18px;
+    font-weight:600;
+    margin:0 0 4px;
+  }
+  .section-sub{
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+  }
+
+  .ledger-cols{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    margin-bottom:32px;
+  }
+  .ledger-panel{
+    background:var(--card);
+    border:1px solid var(--hair);
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .ledger-panel-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:14px 18px;
+    border-bottom:1px solid var(--hair);
+  }
+  .ledger-panel-head.pos{background:var(--pos-bg);}
+  .ledger-panel-head.neg{background:var(--neg-bg);}
+  .ledger-panel-head h3{
+    font-family:'Fraunces',serif;
+    font-size:15px;
+    font-weight:600;
+    margin:0;
+  }
+  .ledger-panel-head.pos h3{color:var(--pos);}
+  .ledger-panel-head.neg h3{color:var(--neg);}
+  .tally{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:16px;
+    font-weight:500;
+  }
+  .ledger-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:11px 18px;
+    border-bottom:1px solid var(--hair);
+    font-size:13.5px;
+    gap:10px;
+  }
+  .ledger-row:last-child{border-bottom:none;}
+  .ledger-rank{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    width:16px;
+    flex-shrink:0;
+  }
+  .ledger-name{flex:1;min-width:0;}
+  .ledger-name .pname{
+    display:block;
+    font-weight:500;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .ledger-name .pcat{
+    display:block;
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+  .ledger-figs{
+    text-align:right;
+    flex-shrink:0;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .ledger-sales{font-size:13px;font-weight:500;}
+  .ledger-growth{font-size:11.5px;}
+
+  .chart-panel{
+    background:var(--card);
+    border:1px solid var(--hair);
+    border-radius:3px;
+    padding:18px 20px;
+    margin-bottom:32px;
+  }
+  .chart-legend{
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    margin:10px 0 4px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+  .chart-legend span{display:flex;align-items:center;gap:5px;}
+  .swatch{width:9px;height:9px;border-radius:1px;display:inline-block;}
+
+  table.data-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  .data-table th{
+    text-align:left;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    padding:8px 10px;
+    border-bottom:1.5px solid var(--ink);
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+  }
+  .data-table th:hover{color:var(--ink);}
+  .data-table th.sorted::after{content:" \2193";}
+  .data-table th.sorted.asc::after{content:" \2191";}
+  .data-table td{
+    padding:9px 10px;
+    border-bottom:1px solid var(--hair);
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .data-table td.pname-cell{font-family:'Inter',sans-serif;}
+  .data-table tr:hover td{background:rgba(184,132,46,0.06);}
+  .g-pos{color:var(--pos);}
+  .g-neg{color:var(--neg);}
+
+  footer{
+    margin-top:36px;
+    padding-top:14px;
+    border-top:1px solid var(--hair);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:800px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .ledger-cols{grid-template-columns:1fr;}
+    body{padding:20px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <p class="brand-eyebrow">Field ledger — retail performance</p>
+      <h1>Product sales dashboard</h1>
+    </div>
+    <div class="asof">6-month view · Jan–Jun 2026<br/>synthetic demo data</div>
+  </header>
+
+  <div class="filters">
+    <div class="filter-group">
+      <label for="f-region">Region</label>
+      <select id="f-region"></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-category">Category</label>
+      <select id="f-category"></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-month-from">From month</label>
+      <select id="f-month-from"></select>
+    </div>
+    <div class="filter-group">
+      <label for="f-month-to">To month</label>
+      <select id="f-month-to"></select>
+    </div>
+    <button class="reset-btn" id="reset-filters">Reset filters</button>
+  </div>
+
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <div class="section-title">Winners and losers</div>
+  <p class="section-sub">Ranked by revenue growth across the selected period. Positive entries are gaining share; negative entries are slipping.</p>
+  <div class="ledger-cols">
+    <div class="ledger-panel">
+      <div class="ledger-panel-head pos">
+        <h3>Top performers</h3>
+      </div>
+      <div id="top-list"></div>
+    </div>
+    <div class="ledger-panel">
+      <div class="ledger-panel-head neg">
+        <h3>Underperformers</h3>
+      </div>
+      <div id="bottom-list"></div>
+    </div>
+  </div>
+
+  <div class="section-title">Revenue trend</div>
+  <p class="section-sub">Monthly revenue for the top 5 products in the current filter selection.</p>
+  <div class="chart-panel">
+    <div style="position:relative;height:300px;">
+      <canvas id="trendChart" role="img" aria-label="Line chart of monthly revenue trend for top 5 filtered products"></canvas>
+    </div>
+    <div class="chart-legend" id="trend-legend"></div>
+  </div>
+
+  <div class="section-title">Category breakdown</div>
+  <p class="section-sub">Share of total revenue by category, current filters applied.</p>
+  <div class="chart-panel">
+    <div style="position:relative;height:260px;">
+      <canvas id="catChart" role="img" aria-label="Horizontal bar chart of revenue by category"></canvas>
+    </div>
+  </div>
+
+  <div class="section-title">Full product ledger</div>
+  <p class="section-sub">Click a column header to sort.</p>
+  <div class="chart-panel" style="padding:0;overflow-x:auto;">
+    <table class="data-table" id="data-table">
+      <thead>
+        <tr>
+          <th data-key="product">Product</th>
+          <th data-key="category">Category</th>
+          <th data-key="sales">Revenue</th>
+          <th data-key="units">Units</th>
+          <th data-key="growth">Growth</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <footer>Data is illustrative and generated for demonstration purposes.</footer>
+</div>
+
+<script>
+const RAW = [{"product":"Aurora Blend Coffee","category":"Beverages","region":"North","month":"Jan","sales":2385,"units":201},{"product":"Aurora Blend Coffee","category":"Beverages","region":"North","month":"Feb","sales":2714,"units":148},{"product":"Aurora Blend Coffee","category":"Beverages","region":"North","month":"Mar","sales":3242,"units":158},{"product":"Aurora Blend Coffee","category":"Beverages","region":"North","month":"Apr","sales":3131,"units":225},{"product":"Aurora Blend Coffee","category":"Beverages","region":"North","month":"May","sales":3371,"units":305},{"product":"Aurora Blend Coffee","category":"Beverages","region":"North","month":"Jun","sales":4060,"units":485},{"product":"Aurora Blend Coffee","category":"Beverages","region":"South","month":"Jan","sales":1832,"units":117},{"product":"Aurora Blend Coffee","category":"Beverages","region":"South","month":"Feb","sales":1830,"units":113},{"product":"Aurora Blend Coffee","category":"Beverages","region":"South","month":"Mar","sales":2244,"units":277},{"product":"Aurora Blend Coffee","category":"Beverages","region":"South","month":"Apr","sales":2444,"units":138},{"product":"Aurora Blend Coffee","category":"Beverages","region":"South","month":"May","sales":2430,"units":239},{"product":"Aurora Blend Coffee","category":"Beverages","region":"South","month":"Jun","sales":2986,"units":235},{"product":"Aurora Blend Coffee","category":"Beverages","region":"East","month":"Jan","sales":1856,"units":93},{"product":"Aurora Blend Coffee","category":"Beverages","region":"East","month":"Feb","sales":2246,"units":116},{"product":"Aurora Blend Coffee","category":"Beverages","region":"East","month":"Mar","sales":2509,"units":162},{"product":"Aurora Blend Coffee","category":"Beverages","region":"East","month":"Apr","sales":2862,"units":215},{"product":"Aurora Blend Coffee","category":"Beverages","region":"East","month":"May","sales":2880,"units":147},{"product":"Aurora Blend Coffee","category":"Beverages","region":"East","month":"Jun","sales":3180,"units":158},{"product":"Aurora Blend Coffee","category":"Beverages","region":"West","month":"Jan","sales":2327,"units":269},{"product":"Aurora Blend Coffee","category":"Beverages","region":"West","month":"Feb","sales":2304,"units":191},{"product":"Aurora Blend Coffee","category":"Beverages","region":"West","month":"Mar","sales":2433,"units":216},{"product":"Aurora Blend Coffee","category":"Beverages","region":"West","month":"Apr","sales":2664,"units":224},{"product":"Aurora Blend Coffee","category":"Beverages","region":"West","month":"May","sales":3242,"units":247},{"product":"Aurora Blend Coffee","category":"Beverages","region":"West","month":"Jun","sales":3351,"units":307},{"product":"Dark Roast Espresso","category":"Beverages","region":"North","month":"Jan","sales":1975,"units":116},{"product":"Dark Roast Espresso","category":"Beverages","region":"North","month":"Feb","sales":1911,"units":184},{"product":"Dark Roast Espresso","category":"Beverages","region":"North","month":"Mar","sales":2015,"units":196},{"product":"Dark Roast Espresso","category":"Beverages","region":"North","month":"Apr","sales":1937,"units":89},{"product":"Dark Roast Espresso","category":"Beverages","region":"North","month":"May","sales":2101,"units":133},{"product":"Dark Roast Espresso","category":"Beverages","region":"North","month":"Jun","sales":2183,"units":110},{"product":"Dark Roast Espresso","category":"Beverages","region":"South","month":"Jan","sales":1545,"units":183},{"product":"Dark Roast Espresso","category":"Beverages","region":"South","month":"Feb","sales":1621,"units":138},{"product":"Dark Roast Espresso","category":"Beverages","region":"South","month":"Mar","sales":1633,"units":77},{"product":"Dark Roast Espresso","category":"Beverages","region":"South","month":"Apr","sales":1920,"units":155},{"product":"Dark Roast Espresso","category":"Beverages","region":"South","month":"May","sales":1896,"units":140},{"product":"Dark Roast Espresso","category":"Beverages","region":"South","month":"Jun","sales":2051,"units":142},{"product":"Dark Roast Espresso","category":"Beverages","region":"East","month":"Jan","sales":1566,"units":99},{"product":"Dark Roast Espresso","category":"Beverages","region":"East","month":"Feb","sales":1619,"units":100},{"product":"Dark Roast Espresso","category":"Beverages","region":"East","month":"Mar","sales":1890,"units":139},{"product":"Dark Roast Espresso","category":"Beverages","region":"East","month":"Apr","sales":1702,"units":77},{"product":"Dark Roast Espresso","category":"Beverages","region":"East","month":"May","sales":1860,"units":201},{"product":"Dark Roast Espresso","category":"Beverages","region":"East","month":"Jun","sales":1739,"units":182},{"product":"Dark Roast Espresso","category":"Beverages","region":"West","month":"Jan","sales":1853,"units":133},{"product":"Dark Roast Espresso","category":"Beverages","region":"West","month":"Feb","sales":1646,"units":123},{"product":"Dark Roast Espresso","category":"Beverages","region":"West","month":"Mar","sales":2042,"units":133},{"product":"Dark Roast Espresso","category":"Beverages","region":"West","month":"Apr","sales":2093,"units":104},{"product":"Dark Roast Espresso","category":"Beverages","region":"West","month":"May","sales":1778,"units":98},{"product":"Dark Roast Espresso","category":"Beverages","region":"West","month":"Jun","sales":2103,"units":136},{"product":"Peppermint Tea","category":"Beverages","region":"North","month":"Jan","sales":842,"units":88},{"product":"Peppermint Tea","category":"Beverages","region":"North","month":"Feb","sales":759,"units":53},{"product":"Peppermint Tea","category":"Beverages","region":"North","month":"Mar","sales":789,"units":39},{"product":"Peppermint Tea","category":"Beverages","region":"North","month":"Apr","sales":648,"units":43},{"product":"Peppermint Tea","category":"Beverages","region":"North","month":"May","sales":598,"units":29},{"product":"Peppermint Tea","category":"Beverages","region":"North","month":"Jun","sales":645,"units":53},{"product":"Peppermint Tea","category":"Beverages","region":"South","month":"Jan","sales":724,"units":71},{"product":"Peppermint Tea","category":"Beverages","region":"South","month":"Feb","sales":701,"units":45},{"product":"Peppermint Tea","category":"Beverages","region":"South","month":"Mar","sales":661,"units":43},{"product":"Peppermint Tea","category":"Beverages","region":"South","month":"Apr","sales":530,"units":42},{"product":"Peppermint Tea","category":"Beverages","region":"South","month":"May","sales":500,"units":24},{"product":"Peppermint Tea","category":"Beverages","region":"South","month":"Jun","sales":559,"units":28},{"product":"Peppermint Tea","category":"Beverages","region":"East","month":"Jan","sales":687,"units":34},{"product":"Peppermint Tea","category":"Beverages","region":"East","month":"Feb","sales":772,"units":84},{"product":"Peppermint Tea","category":"Beverages","region":"East","month":"Mar","sales":664,"units":74},{"product":"Peppermint Tea","category":"Beverages","region":"East","month":"Apr","sales":659,"units":35},{"product":"Peppermint Tea","category":"Beverages","region":"East","month":"May","sales":545,"units":37},{"product":"Peppermint Tea","category":"Beverages","region":"East","month":"Jun","sales":559,"units":48},{"product":"Peppermint Tea","category":"Beverages","region":"West","month":"Jan","sales":832,"units":76},{"product":"Peppermint Tea","category":"Beverages","region":"West","month":"Feb","sales":800,"units":44},{"product":"Peppermint Tea","category":"Beverages","region":"West","month":"Mar","sales":702,"units":57},{"product":"Peppermint Tea","category":"Beverages","region":"West","month":"Apr","sales":771,"units":45},{"product":"Peppermint Tea","category":"Beverages","region":"West","month":"May","sales":651,"units":43},{"product":"Peppermint Tea","category":"Beverages","region":"West","month":"Jun","sales":573,"units":51},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"North","month":"Jan","sales":1491,"units":133},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"North","month":"Feb","sales":1577,"units":175},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"North","month":"Mar","sales":1954,"units":174},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"North","month":"Apr","sales":2347,"units":117},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"North","month":"May","sales":2262,"units":200},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"North","month":"Jun","sales":2916,"units":265},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"South","month":"Jan","sales":1151,"units":72},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"South","month":"Feb","sales":1200,"units":63},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"South","month":"Mar","sales":1461,"units":137},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"South","month":"Apr","sales":1442,"units":103},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"South","month":"May","sales":1761,"units":121},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"South","month":"Jun","sales":2132,"units":122},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"East","month":"Jan","sales":1475,"units":108},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"East","month":"Feb","sales":1769,"units":88},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"East","month":"Mar","sales":1979,"units":186},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"East","month":"Apr","sales":2351,"units":169},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"East","month":"May","sales":2588,"units":225},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"East","month":"Jun","sales":3348,"units":236},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"West","month":"Jan","sales":1489,"units":171},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"West","month":"Feb","sales":1848,"units":94},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"West","month":"Mar","sales":2096,"units":100},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"West","month":"Apr","sales":2336,"units":226},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"West","month":"May","sales":2483,"units":226},{"product":"Oat Milk Latte Mix","category":"Beverages","region":"West","month":"Jun","sales":2782,"units":315},{"product":"Cedarwood Candle","category":"Home","region":"North","month":"Jan","sales":1861,"units":159},{"product":"Cedarwood Candle","category":"Home","region":"North","month":"Feb","sales":1882,"units":131},{"product":"Cedarwood Candle","category":"Home","region":"North","month":"Mar","sales":1841,"units":86},{"product":"Cedarwood Candle","category":"Home","region":"North","month":"Apr","sales":2158,"units":137},{"product":"Cedarwood Candle","category":"Home","region":"North","month":"May","sales":2152,"units":212},{"product":"Cedarwood Candle","category":"Home","region":"North","month":"Jun","sales":2077,"units":96},{"product":"Cedarwood Candle","category":"Home","region":"South","month":"Jan","sales":1404,"units":76},{"product":"Cedarwood Candle","category":"Home","region":"South","month":"Feb","sales":1332,"units":82},{"product":"Cedarwood Candle","category":"Home","region":"South","month":"Mar","sales":1536,"units":77},{"product":"Cedarwood Candle","category":"Home","region":"South","month":"Apr","sales":1501,"units":70},{"product":"Cedarwood Candle","category":"Home","region":"South","month":"May","sales":1550,"units":146},{"product":"Cedarwood Candle","category":"Home","region":"South","month":"Jun","sales":1811,"units":104},{"product":"Cedarwood Candle","category":"Home","region":"East","month":"Jan","sales":1361,"units":67},{"product":"Cedarwood Candle","category":"Home","region":"East","month":"Feb","sales":1468,"units":90},{"product":"Cedarwood Candle","category":"Home","region":"East","month":"Mar","sales":1663,"units":120},{"product":"Cedarwood Candle","category":"Home","region":"East","month":"Apr","sales":1734,"units":113},{"product":"Cedarwood Candle","category":"Home","region":"East","month":"May","sales":1946,"units":179},{"product":"Cedarwood Candle","category":"Home","region":"East","month":"Jun","sales":1961,"units":173},{"product":"Cedarwood Candle","category":"Home","region":"West","month":"Jan","sales":1523,"units":125},{"product":"Cedarwood Candle","category":"Home","region":"West","month":"Feb","sales":1489,"units":80},{"product":"Cedarwood Candle","category":"Home","region":"West","month":"Mar","sales":1485,"units":103},{"product":"Cedarwood Candle","category":"Home","region":"West","month":"Apr","sales":1875,"units":85},{"product":"Cedarwood Candle","category":"Home","region":"West","month":"May","sales":1637,"units":149},{"product":"Cedarwood Candle","category":"Home","region":"West","month":"Jun","sales":1791,"units":85},{"product":"Linen Throw Blanket","category":"Home","region":"North","month":"Jan","sales":692,"units":53},{"product":"Linen Throw Blanket","category":"Home","region":"North","month":"Feb","sales":533,"units":27},{"product":"Linen Throw Blanket","category":"Home","region":"North","month":"Mar","sales":530,"units":32},{"product":"Linen Throw Blanket","category":"Home","region":"North","month":"Apr","sales":498,"units":29},{"product":"Linen Throw Blanket","category":"Home","region":"North","month":"May","sales":364,"units":19},{"product":"Linen Throw Blanket","category":"Home","region":"North","month":"Jun","sales":345,"units":20},{"product":"Linen Throw Blanket","category":"Home","region":"South","month":"Jan","sales":468,"units":49},{"product":"Linen Throw Blanket","category":"Home","region":"South","month":"Feb","sales":414,"units":26},{"product":"Linen Throw Blanket","category":"Home","region":"South","month":"Mar","sales":382,"units":23},{"product":"Linen Throw Blanket","category":"Home","region":"South","month":"Apr","sales":372,"units":34},{"product":"Linen Throw Blanket","category":"Home","region":"South","month":"May","sales":325,"units":28},{"product":"Linen Throw Blanket","category":"Home","region":"South","month":"Jun","sales":281,"units":14},{"product":"Linen Throw Blanket","category":"Home","region":"East","month":"Jan","sales":532,"units":38},{"product":"Linen Throw Blanket","category":"Home","region":"East","month":"Feb","sales":493,"units":61},{"product":"Linen Throw Blanket","category":"Home","region":"East","month":"Mar","sales":484,"units":29},{"product":"Linen Throw Blanket","category":"Home","region":"East","month":"Apr","sales":389,"units":21},{"product":"Linen Throw Blanket","category":"Home","region":"East","month":"May","sales":367,"units":26},{"product":"Linen Throw Blanket","category":"Home","region":"East","month":"Jun","sales":292,"units":32},{"product":"Linen Throw Blanket","category":"Home","region":"West","month":"Jan","sales":601,"units":38},{"product":"Linen Throw Blanket","category":"Home","region":"West","month":"Feb","sales":528,"units":33},{"product":"Linen Throw Blanket","category":"Home","region":"West","month":"Mar","sales":409,"units":42},{"product":"Linen Throw Blanket","category":"Home","region":"West","month":"Apr","sales":377,"units":18},{"product":"Linen Throw Blanket","category":"Home","region":"West","month":"May","sales":370,"units":18},{"product":"Linen Throw Blanket","category":"Home","region":"West","month":"Jun","sales":335,"units":31},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"North","month":"Jan","sales":1124,"units":59},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"North","month":"Feb","sales":1341,"units":98},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"North","month":"Mar","sales":1301,"units":128},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"North","month":"Apr","sales":1407,"units":70},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"North","month":"May","sales":1447,"units":75},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"North","month":"Jun","sales":1451,"units":174},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"South","month":"Jan","sales":1056,"units":50},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"South","month":"Feb","sales":1182,"units":59},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"South","month":"Mar","sales":1207,"units":103},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"South","month":"Apr","sales":1226,"units":129},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"South","month":"May","sales":1270,"units":63},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"South","month":"Jun","sales":1139,"units":59},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"East","month":"Jan","sales":1140,"units":60},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"East","month":"Feb","sales":1144,"units":137},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"East","month":"Mar","sales":1158,"units":92},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"East","month":"Apr","sales":1350,"units":63},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"East","month":"May","sales":1227,"units":72},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"East","month":"Jun","sales":1283,"units":59},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"West","month":"Jan","sales":1254,"units":130},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"West","month":"Feb","sales":1286,"units":122},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"West","month":"Mar","sales":1310,"units":112},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"West","month":"Apr","sales":1127,"units":80},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"West","month":"May","sales":1304,"units":105},{"product":"Ceramic Pour-Over Mug","category":"Home","region":"West","month":"Jun","sales":1299,"units":86},{"product":"Copper Kettle","category":"Home","region":"North","month":"Jan","sales":377,"units":33},{"product":"Copper Kettle","category":"Home","region":"North","month":"Feb","sales":329,"units":41},{"product":"Copper Kettle","category":"Home","region":"North","month":"Mar","sales":291,"units":19},{"product":"Copper Kettle","category":"Home","region":"North","month":"Apr","sales":238,"units":13},{"product":"Copper Kettle","category":"Home","region":"North","month":"May","sales":201,"units":15},{"product":"Copper Kettle","category":"Home","region":"North","month":"Jun","sales":151,"units":9},{"product":"Copper Kettle","category":"Home","region":"South","month":"Jan","sales":272,"units":14},{"product":"Copper Kettle","category":"Home","region":"South","month":"Feb","sales":251,"units":21},{"product":"Copper Kettle","category":"Home","region":"South","month":"Mar","sales":196,"units":14},{"product":"Copper Kettle","category":"Home","region":"South","month":"Apr","sales":170,"units":14},{"product":"Copper Kettle","category":"Home","region":"South","month":"May","sales":136,"units":10},{"product":"Copper Kettle","category":"Home","region":"South","month":"Jun","sales":136,"units":8},{"product":"Copper Kettle","category":"Home","region":"East","month":"Jan","sales":401,"units":33},{"product":"Copper Kettle","category":"Home","region":"East","month":"Feb","sales":337,"units":42},{"product":"Copper Kettle","category":"Home","region":"East","month":"Mar","sales":271,"units":19},{"product":"Copper Kettle","category":"Home","region":"East","month":"Apr","sales":245,"units":14},{"product":"Copper Kettle","category":"Home","region":"East","month":"May","sales":203,"units":14},{"product":"Copper Kettle","category":"Home","region":"East","month":"Jun","sales":164,"units":11},{"product":"Copper Kettle","category":"Home","region":"West","month":"Jan","sales":395,"units":38},{"product":"Copper Kettle","category":"Home","region":"West","month":"Feb","sales":290,"units":19},{"product":"Copper Kettle","category":"Home","region":"West","month":"Mar","sales":276,"units":22},{"product":"Copper Kettle","category":"Home","region":"West","month":"Apr","sales":243,"units":13},{"product":"Copper Kettle","category":"Home","region":"West","month":"May","sales":201,"units":18},{"product":"Copper Kettle","category":"Home","region":"West","month":"Jun","sales":155,"units":19},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"North","month":"Jan","sales":985,"units":50},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"North","month":"Feb","sales":969,"units":70},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"North","month":"Mar","sales":1163,"units":108},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"North","month":"Apr","sales":1261,"units":85},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"North","month":"May","sales":1232,"units":72},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"North","month":"Jun","sales":1252,"units":68},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"South","month":"Jan","sales":825,"units":59},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"South","month":"Feb","sales":896,"units":42},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"South","month":"Mar","sales":1029,"units":118},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"South","month":"Apr","sales":1042,"units":52},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"South","month":"May","sales":1164,"units":61},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"South","month":"Jun","sales":1299,"units":60},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"East","month":"Jan","sales":1093,"units":53},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"East","month":"Feb","sales":1097,"units":61},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"East","month":"Mar","sales":1149,"units":59},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"East","month":"Apr","sales":1240,"units":60},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"East","month":"May","sales":1379,"units":94},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"East","month":"Jun","sales":1339,"units":117},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"West","month":"Jan","sales":1016,"units":66},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"West","month":"Feb","sales":1058,"units":89},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"West","month":"Mar","sales":1011,"units":84},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"West","month":"Apr","sales":1128,"units":90},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"West","month":"May","sales":1274,"units":128},{"product":"Bergamot Bar Soap","category":"Personal Care","region":"West","month":"Jun","sales":1280,"units":72},{"product":"Wildflower Honey","category":"Pantry","region":"North","month":"Jan","sales":1360,"units":99},{"product":"Wildflower Honey","category":"Pantry","region":"North","month":"Feb","sales":1472,"units":107},{"product":"Wildflower Honey","category":"Pantry","region":"North","month":"Mar","sales":1347,"units":97},{"product":"Wildflower Honey","category":"Pantry","region":"North","month":"Apr","sales":1515,"units":94},{"product":"Wildflower Honey","category":"Pantry","region":"North","month":"May","sales":1427,"units":71},{"product":"Wildflower Honey","category":"Pantry","region":"North","month":"Jun","sales":1418,"units":106},{"product":"Wildflower Honey","category":"Pantry","region":"South","month":"Jan","sales":896,"units":48},{"product":"Wildflower Honey","category":"Pantry","region":"South","month":"Feb","sales":969,"units":45},{"product":"Wildflower Honey","category":"Pantry","region":"South","month":"Mar","sales":872,"units":47},{"product":"Wildflower Honey","category":"Pantry","region":"South","month":"Apr","sales":877,"units":53},{"product":"Wildflower Honey","category":"Pantry","region":"South","month":"May","sales":804,"units":73},{"product":"Wildflower Honey","category":"Pantry","region":"South","month":"Jun","sales":824,"units":98},{"product":"Wildflower Honey","category":"Pantry","region":"East","month":"Jan","sales":1256,"units":92},{"product":"Wildflower Honey","category":"Pantry","region":"East","month":"Feb","sales":1108,"units":76},{"product":"Wildflower Honey","category":"Pantry","region":"East","month":"Mar","sales":1078,"units":65},{"product":"Wildflower Honey","category":"Pantry","region":"East","month":"Apr","sales":1033,"units":76},{"product":"Wildflower Honey","category":"Pantry","region":"East","month":"May","sales":1133,"units":135},{"product":"Wildflower Honey","category":"Pantry","region":"East","month":"Jun","sales":1127,"units":114},{"product":"Wildflower Honey","category":"Pantry","region":"West","month":"Jan","sales":1090,"units":82},{"product":"Wildflower Honey","category":"Pantry","region":"West","month":"Feb","sales":1106,"units":88},{"product":"Wildflower Honey","category":"Pantry","region":"West","month":"Mar","sales":1210,"units":91},{"product":"Wildflower Honey","category":"Pantry","region":"West","month":"Apr","sales":1184,"units":60},{"product":"Wildflower Honey","category":"Pantry","region":"West","month":"May","sales":1050,"units":115},{"product":"Wildflower Honey","category":"Pantry","region":"West","month":"Jun","sales":978,"units":63},{"product":"Sourdough Starter Kit","category":"Pantry","region":"North","month":"Jan","sales":301,"units":18},{"product":"Sourdough Starter Kit","category":"Pantry","region":"North","month":"Feb","sales":255,"units":15},{"product":"Sourdough Starter Kit","category":"Pantry","region":"North","month":"Mar","sales":198,"units":9},{"product":"Sourdough Starter Kit","category":"Pantry","region":"North","month":"Apr","sales":138,"units":17},{"product":"Sourdough Starter Kit","category":"Pantry","region":"North","month":"May","sales":107,"units":11},{"product":"Sourdough Starter Kit","category":"Pantry","region":"North","month":"Jun","sales":93,"units":6},{"product":"Sourdough Starter Kit","category":"Pantry","region":"South","month":"Jan","sales":198,"units":11},{"product":"Sourdough Starter Kit","category":"Pantry","region":"South","month":"Feb","sales":139,"units":8},{"product":"Sourdough Starter Kit","category":"Pantry","region":"South","month":"Mar","sales":122,"units":13},{"product":"Sourdough Starter Kit","category":"Pantry","region":"South","month":"Apr","sales":96,"units":4},{"product":"Sourdough Starter Kit","category":"Pantry","region":"South","month":"May","sales":65,"units":8},{"product":"Sourdough Starter Kit","category":"Pantry","region":"South","month":"Jun","sales":53,"units":3},{"product":"Sourdough Starter Kit","category":"Pantry","region":"East","month":"Jan","sales":273,"units":15},{"product":"Sourdough Starter Kit","category":"Pantry","region":"East","month":"Feb","sales":199,"units":11},{"product":"Sourdough Starter Kit","category":"Pantry","region":"East","month":"Mar","sales":174,"units":18},{"product":"Sourdough Starter Kit","category":"Pantry","region":"East","month":"Apr","sales":139,"units":7},{"product":"Sourdough Starter Kit","category":"Pantry","region":"East","month":"May","sales":105,"units":11},{"product":"Sourdough Starter Kit","category":"Pantry","region":"East","month":"Jun","sales":88,"units":5},{"product":"Sourdough Starter Kit","category":"Pantry","region":"West","month":"Jan","sales":219,"units":17},{"product":"Sourdough Starter Kit","category":"Pantry","region":"West","month":"Feb","sales":173,"units":14},{"product":"Sourdough Starter Kit","category":"Pantry","region":"West","month":"Mar","sales":145,"units":7},{"product":"Sourdough Starter Kit","category":"Pantry","region":"West","month":"Apr","sales":97,"units":5},{"product":"Sourdough Starter Kit","category":"Pantry","region":"West","month":"May","sales":84,"units":4},{"product":"Sourdough Starter Kit","category":"Pantry","region":"West","month":"Jun","sales":67,"units":5},{"product":"Almond Butter Jar","category":"Pantry","region":"North","month":"Jan","sales":869,"units":74},{"product":"Almond Butter Jar","category":"Pantry","region":"North","month":"Feb","sales":877,"units":56},{"product":"Almond Butter Jar","category":"Pantry","region":"North","month":"Mar","sales":857,"units":61},{"product":"Almond Butter Jar","category":"Pantry","region":"North","month":"Apr","sales":935,"units":80},{"product":"Almond Butter Jar","category":"Pantry","region":"North","month":"May","sales":995,"units":51},{"product":"Almond Butter Jar","category":"Pantry","region":"North","month":"Jun","sales":887,"units":44},{"product":"Almond Butter Jar","category":"Pantry","region":"South","month":"Jan","sales":526,"units":32},{"product":"Almond Butter Jar","category":"Pantry","region":"South","month":"Feb","sales":538,"units":64},{"product":"Almond Butter Jar","category":"Pantry","region":"South","month":"Mar","sales":613,"units":58},{"product":"Almond Butter Jar","category":"Pantry","region":"South","month":"Apr","sales":561,"units":29},{"product":"Almond Butter Jar","category":"Pantry","region":"South","month":"May","sales":600,"units":30},{"product":"Almond Butter Jar","category":"Pantry","region":"South","month":"Jun","sales":670,"units":56},{"product":"Almond Butter Jar","category":"Pantry","region":"East","month":"Jan","sales":627,"units":68},{"product":"Almond Butter Jar","category":"Pantry","region":"East","month":"Feb","sales":625,"units":42},{"product":"Almond Butter Jar","category":"Pantry","region":"East","month":"Mar","sales":655,"units":37},{"product":"Almond Butter Jar","category":"Pantry","region":"East","month":"Apr","sales":667,"units":45},{"product":"Almond Butter Jar","category":"Pantry","region":"East","month":"May","sales":713,"units":77},{"product":"Almond Butter Jar","category":"Pantry","region":"East","month":"Jun","sales":662,"units":37},{"product":"Almond Butter Jar","category":"Pantry","region":"West","month":"Jan","sales":614,"units":42},{"product":"Almond Butter Jar","category":"Pantry","region":"West","month":"Feb","sales":632,"units":45},{"product":"Almond Butter Jar","category":"Pantry","region":"West","month":"Mar","sales":685,"units":54},{"product":"Almond Butter Jar","category":"Pantry","region":"West","month":"Apr","sales":707,"units":60},{"product":"Almond Butter Jar","category":"Pantry","region":"West","month":"May","sales":671,"units":69},{"product":"Almond Butter Jar","category":"Pantry","region":"West","month":"Jun","sales":690,"units":71}]
+;
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun"];
+const fmtMoney = v => "$" + Math.round(v).toLocaleString("en-US");
+const fmtPct = v => (v>=0?"+":"") + v.toFixed(1) + "%";
+
+function uniq(arr){ return [...new Set(arr)]; }
+
+const regions = uniq(RAW.map(r=>r.region)).sort();
+const categories = uniq(RAW.map(r=>r.category)).sort();
+
+function populateSelect(id, options, allLabel){
+  const el = document.getElementById(id);
+  el.innerHTML = "";
+  const optAll = document.createElement("option");
+  optAll.value = "__ALL__";
+  optAll.textContent = allLabel;
+  el.appendChild(optAll);
+  options.forEach(o=>{
+    const opt = document.createElement("option");
+    opt.value = o;
+    opt.textContent = o;
+    el.appendChild(opt);
+  });
+}
+populateSelect("f-region", regions, "All regions");
+populateSelect("f-category", categories, "All categories");
+populateSelect("f-month-from", MONTHS, "Jan");
+populateSelect("f-month-to", MONTHS, "Jun");
+document.getElementById("f-month-from").value = "Jan";
+document.getElementById("f-month-to").value = "Jun";
+
+let sortKey = "growth", sortDir = "desc";
+let trendChart = null, catChart = null;
+
+function getFilters(){
+  return {
+    region: document.getElementById("f-region").value,
+    category: document.getElementById("f-category").value,
+    monthFrom: document.getElementById("f-month-from").value,
+    monthTo: document.getElementById("f-month-to").value,
+  };
+}
+
+function monthRange(from, to){
+  const i0 = MONTHS.indexOf(from), i1 = MONTHS.indexOf(to);
+  const lo = Math.min(i0,i1), hi = Math.max(i0,i1);
+  return MONTHS.slice(lo, hi+1);
+}
+
+function filteredRows(){
+  const f = getFilters();
+  const months = monthRange(f.monthFrom, f.monthTo);
+  return RAW.filter(r =>
+    (f.region === "__ALL__" || r.region === f.region) &&
+    (f.category === "__ALL__" || r.category === f.category) &&
+    months.includes(r.month)
+  );
+}
+
+function aggregateByProduct(rows){
+  const map = {};
+  rows.forEach(r=>{
+    if(!map[r.product]) map[r.product] = { product:r.product, category:r.category, sales:0, units:0, byMonth:{} };
+    map[r.product].sales += r.sales;
+    map[r.product].units += r.units;
+    map[r.product].byMonth[r.month] = (map[r.product].byMonth[r.month]||0) + r.sales;
+  });
+  const list = Object.values(map);
+  list.forEach(p=>{
+    const months = Object.keys(p.byMonth).sort((a,b)=>MONTHS.indexOf(a)-MONTHS.indexOf(b));
+    if(months.length >= 2){
+      const first = p.byMonth[months[0]] || 1;
+      const last = p.byMonth[months[months.length-1]];
+      p.growth = ((last - first) / Math.max(first,1)) * 100;
+    } else {
+      p.growth = 0;
+    }
+  });
+  return list;
+}
+
+function render(){
+  const rows = filteredRows();
+  const products = aggregateByProduct(rows);
+  const months = monthRange(getFilters().monthFrom, getFilters().monthTo);
+
+  const totalSales = rows.reduce((s,r)=>s+r.sales,0);
+  const totalUnits = rows.reduce((s,r)=>s+r.units,0);
+  const avgGrowth = products.length ? products.reduce((s,p)=>s+p.growth,0)/products.length : 0;
+  const gainers = products.filter(p=>p.growth>0).length;
+
+  const kpiRow = document.getElementById("kpi-row");
+  kpiRow.innerHTML = `
+    <div class="kpi">
+      <p class="kpi-label">Total revenue</p>
+      <p class="kpi-value">${fmtMoney(totalSales)}</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">Units sold</p>
+      <p class="kpi-value">${totalUnits.toLocaleString("en-US")}</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">Avg. growth</p>
+      <p class="kpi-value">${fmtPct(avgGrowth)}</p>
+      <p class="kpi-delta ${avgGrowth>=0?'delta-pos':'delta-neg'}">${avgGrowth>=0?'trending up':'trending down'} vs period start</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi-label">Products gaining</p>
+      <p class="kpi-value">${gainers} / ${products.length}</p>
+    </div>
+  `;
+
+  const sorted = [...products].sort((a,b)=>b.growth-a.growth);
+  const top = sorted.slice(0,5);
+  const bottom = sorted.slice(-5).reverse();
+
+  document.getElementById("top-list").innerHTML = top.map((p,i)=>`
+    <div class="ledger-row">
+      <span class="ledger-rank">${i+1}</span>
+      <span class="ledger-name"><span class="pname">${p.product}</span><span class="pcat">${p.category}</span></span>
+      <span class="ledger-figs">
+        <div class="ledger-sales">${fmtMoney(p.sales)}</div>
+        <div class="ledger-growth g-pos">${fmtPct(p.growth)}</div>
+      </span>
+    </div>
+  `).join("") || `<div class="ledger-row"><span class="ledger-name">No data for this selection</span></div>`;
+
+  document.getElementById("bottom-list").innerHTML = bottom.map((p,i)=>`
+    <div class="ledger-row">
+      <span class="ledger-rank">${i+1}</span>
+      <span class="ledger-name"><span class="pname">${p.product}</span><span class="pcat">${p.category}</span></span>
+      <span class="ledger-figs">
+        <div class="ledger-sales">${fmtMoney(p.sales)}</div>
+        <div class="ledger-growth g-neg">${fmtPct(p.growth)}</div>
+      </span>
+    </div>
+  `).join("") || `<div class="ledger-row"><span class="ledger-name">No data for this selection</span></div>`;
+
+  const topTrendProducts = [...products].sort((a,b)=>b.sales-a.sales).slice(0,5);
+  const palette = ["#2a78d6","#1baf7a","#eda100","#4a3aa7","#eb6834"];
+  const trendDatasets = topTrendProducts.map((p,i)=>({
+    label: p.product,
+    data: months.map(m => p.byMonth[m] || 0),
+    borderColor: palette[i % palette.length],
+    backgroundColor: palette[i % palette.length],
+    borderWidth: 2,
+    pointRadius: 3,
+    pointBackgroundColor: palette[i % palette.length],
+    tension: 0.25,
+    fill: false,
+  }));
+
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById("trendChart"), {
+    type: "line",
+    data: { labels: months, datasets: trendDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { callback: v => "$"+ (v/1000).toFixed(0) + "k" }, grid: { color:"#e1e0d9" } },
+        x: { grid: { display:false } }
+      }
+    }
+  });
+
+  document.getElementById("trend-legend").innerHTML = topTrendProducts.map((p,i)=>
+    `<span><span class="swatch" style="background:${palette[i%palette.length]}"></span>${p.product}</span>`
+  ).join("");
+
+  const catTotals = {};
+  rows.forEach(r=>{ catTotals[r.category] = (catTotals[r.category]||0) + r.sales; });
+  const catLabels = Object.keys(catTotals).sort((a,b)=>catTotals[b]-catTotals[a]);
+  const catData = catLabels.map(c=>catTotals[c]);
+
+  if(catChart) catChart.destroy();
+  catChart = new Chart(document.getElementById("catChart"), {
+    type: "bar",
+    data: {
+      labels: catLabels,
+      datasets: [{
+        data: catData,
+        backgroundColor: "#B8842E",
+        borderRadius: 3,
+        maxBarThickness: 26
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { callback: v => "$"+(v/1000).toFixed(0)+"k" }, grid: { color:"#e1e0d9" } },
+        y: { grid: { display:false } }
+      }
+    }
+  });
+
+  renderTable(products);
+}
+
+function renderTable(products){
+  const list = [...products].sort((a,b)=>{
+    let av = a[sortKey], bv = b[sortKey];
+    if(typeof av === "string"){ av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    if(av < bv) return sortDir === "asc" ? -1 : 1;
+    if(av > bv) return sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+  document.getElementById("table-body").innerHTML = list.map(p=>`
+    <tr>
+      <td class="pname-cell">${p.product}</td>
+      <td>${p.category}</td>
+      <td>${fmtMoney(p.sales)}</td>
+      <td>${p.units.toLocaleString("en-US")}</td>
+      <td class="${p.growth>=0?'g-pos':'g-neg'}">${fmtPct(p.growth)}</td>
+    </tr>
+  `).join("");
+
+  document.querySelectorAll(".data-table th").forEach(th=>{
+    th.classList.remove("sorted","asc");
+    if(th.dataset.key === sortKey){
+      th.classList.add("sorted");
+      if(sortDir === "asc") th.classList.add("asc");
+    }
+  });
+}
+
+document.querySelectorAll(".data-table th").forEach(th=>{
+  th.addEventListener("click", ()=>{
+    const key = th.dataset.key;
+    if(sortKey === key){ sortDir = sortDir === "asc" ? "desc" : "asc"; }
+    else { sortKey = key; sortDir = "desc"; }
+    renderTable(aggregateByProduct(filteredRows()));
+  });
+});
+
+["f-region","f-category","f-month-from","f-month-to"].forEach(id=>{
+  document.getElementById(id).addEventListener("change", render);
+});
+document.getElementById("reset-filters").addEventListener("click", ()=>{
+  document.getElementById("f-region").value = "__ALL__";
+  document.getElementById("f-category").value = "__ALL__";
+  document.getElementById("f-month-from").value = "Jan";
+  document.getElementById("f-month-to").value = "Jun";
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
